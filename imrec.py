@@ -7,6 +7,64 @@ from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.cluster.hierarchy import fcluster
 
+
+
+def write_img(path, img, conversion=cv2.COLOR_RGB2BGR):
+  if len(img.shape) > 2 and img.shape[2] > 1:
+    if conversion:
+      cv2.imwrite(path, cv2.cvtColor(img, conversion))
+    else:
+      cv2.imwrite(path, img)
+  else:
+    cv2.imwrite(path, img*255)
+
+def get_screenshot():
+  screenres = (1920, 1200)
+  gameres = (1440,900)
+  startx,starty = (screenres[0] - gameres[0], 0)
+  endx,endy = (startx+gameres[0], starty+gameres[1])
+
+  img = get_demo_screenshot()
+
+  crop = img[starty:endy, startx:endx, :]
+  write_img("./test_crop.png", crop)
+  return crop
+
+def imread(path):
+  #img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB).astype(np.float32)
+  #return img/255.0
+  img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB).astype(np.uint8)
+  return img
+
+def get_demo_screenshot():
+  return imread(path)
+
+ring_template = imread('./template.png')
+knob_template = imread('./16x_32y.png')
+
+def template_matching(img, template, offset_xy=None, fn=None):
+  # All the 6 methods for comparison in a list
+  #methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED', 'cv2.TM_CCORR',
+  #            'cv2.TM_CCORR_NORMED', 'cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED']
+  #method = cv2.TM_CCOEFF
+  method = cv2.TM_CCOEFF_NORMED
+  res = cv2.matchTemplate(img,template,method)
+  min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+
+  #top_left = max_loc
+  #bottom_right = (top_left[0] + w, top_left[1] + h)
+  if offset_xy is None:
+    h,w = np.shape(template)[:-1]
+    pos = (max_loc[0] + w//2,  max_loc[1] + h//2)
+  else:
+    pos = (max_loc[0] + offset_xy[0], max_loc[1] + offset_xy[1])
+  img = img.copy()
+  img4 = cv2.circle(img, pos, 5, (125,0,125), 2)
+  if fn is None:
+    fn = "./test_template.png"
+  write_img(fn, img4)
+  return (pos[1], pos[0])
+
 class puzzlegen(object):
   def __init__(self):
     self.cellcounts = (4,4)
@@ -14,39 +72,14 @@ class puzzlegen(object):
     self.ideal_bg = (0,133,103)
     self.thresh = 60
 
-    self.img = self.get_screenshot()
+    self.img = get_screenshot()
+    self.ringpos = template_matching(self.img, ring_template, None, 'test_ring_template.png')
+    self.knobpos = template_matching(self.img, knob_template, (16,32), 'test_knob_template.png')
+
     self.mono = self.cyanize(self.img)
     self.horstripes, self.verstripes = self.get_stripes()
     self.mids = self.get_cells()
     self.get_shapes()
-
-  def write_img(self, path, img, conversion=cv2.COLOR_RGB2BGR):
-    if len(img.shape) > 2 and img.shape[2] > 1:
-      if conversion:
-        cv2.imwrite(path, cv2.cvtColor(img, conversion))
-      else:
-        cv2.imwrite(path, img)
-    else:
-      cv2.imwrite(path, img*255)
-
-  def get_screenshot(self):
-    screenres = (1920, 1200)
-    gameres = (1440,900)
-    startx,starty = (screenres[0] - gameres[0], 0)
-    endx,endy = (startx+gameres[0], starty+gameres[1])
-
-    img = self.get_demo_screenshot()
-
-    crop = img[starty:endy, startx:endx, :]
-    self.write_img("./test_crop.png", crop)
-    return crop
-
-  def get_demo_screenshot(self):
-    path = "./test2.png"
-    #img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB).astype(np.float32)
-    #return img/255.0
-    img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB).astype(np.uint8)
-    return img
 
   def cyanize(self, img):
     diff = np.sum(np.sqrt( (img - self.ideal_bg)**2), axis=2)
@@ -54,7 +87,7 @@ class puzzlegen(object):
 
     mono = np.where(diff < self.thresh, 1, 0)
     print(mono.shape)
-    self.write_img("./test_cyanize.png", mono)
+    write_img("./test_cyanize.png", mono)
     return mono
 
   def get_stripes(self):
@@ -86,16 +119,18 @@ class puzzlegen(object):
           attempt = [None,None]
       return longest
 
-    x,y=572,597
+    #x,y=572,597
+    y,x = self.ringpos
     xstripe = longest_stretch(self.mono[y,:])
     ystripe = longest_stretch(self.mono[:,x])
 
     #pad/adjust ends of stripe to avoid border
-    xstripe[1] -= 10
-    ystripe[0] += 10
+    #xstripe[1] -= 10
+    #ystripe[0] += 10
     xstripe[0] = x
     ystripe[1] = y
-
+    #cheap hack
+    ystripe[0],xstripe[1] = self.knobpos
 
     xlen = xstripe[1] - xstripe[0]
     xstep = xlen/self.cellcounts[1]
@@ -114,7 +149,7 @@ class puzzlegen(object):
       self.img2[ypos,  x0:xn] = (255, 0, 50*(i+1))
     for i,((y0,yn),xpos) in enumerate(verstripes):
       self.img2[y0:yn,xpos] = (50*(i+1),255,0)
-    self.write_img("./test_stripe.png", self.img2)
+    write_img("./test_stripe.png", self.img2)
 
     return horstripes,verstripes
 
@@ -129,10 +164,11 @@ class puzzlegen(object):
     img3 = self.img2.copy()
     for (i,y),(j,x) in mids:
       img3 = cv2.circle(img3, (x,y), 5, (0,0,255), 2)
-    self.write_img("./test_cells.png", img3)
+    write_img("./test_cells.png", img3)
     return mids
 
   def get_shapes(self):
+    """find the colours of the cells"""
     colours = [[None for j in range(self.cellcounts[0])] for i in range(self.cellcounts[1])]
     X = []
     backmap = {}
@@ -163,7 +199,9 @@ class puzzlegen(object):
       col = blibs[(cls-1)]
       img4 = cv2.circle(img4, (x,y), 5, col, 2)
 
-    self.write_img("./test_classes.png", img4)
+    write_img("./test_classes.png", img4)
 
 if __name__ == '__main__':
+  path = "./test.png"
+  #path = "./test2.png"
   puzzlegen()
