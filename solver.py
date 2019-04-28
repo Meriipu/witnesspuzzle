@@ -2,14 +2,13 @@ import numpy as np
 import imrec
 
 def get_demo_screenshot():
-  path = "./testfiles/test3.png"
-  #path = "./testfiles/test2.png"
+  #path = "./testfiles/test3.png"
+  path = "./testfiles/testB.png"
   return imrec.imread(path)
 
 
 class solvestuff(object):
-  def __init__(self):
-    screenshot = imrec.get_screenshot(get_demo_screenshot())
+  def __init__(self, screenshot):
     self.puz = imrec.puzzlegen(screenshot)
 
     self.ch, self.cw = np.shape(self.puz.res)
@@ -36,6 +35,8 @@ class solvestuff(object):
       mixed = False
       while stack:
         node = stack.pop()
+        #if accept_goalmix and node == self.goal_node:
+        #  return True, visited | {node}
         cls = self.puz.res[node[0]][node[1]]
         if okcls == 0:
           okcls = cls
@@ -93,6 +94,8 @@ class solvestuff(object):
     #neighbour_listing = [[self.neighbours((i,j),(self.ch, self.cw)) for j in range(self.cw)] for i in range(self.ch)]
     neighbour_listing = {(i,j):self.neighbours((i,j),(self.ch, self.cw)) for j in range(self.cw) for i in range(self.ch)}
 
+    solutions = []
+
     derpstory = [self.starting_vertex]
     visits = [self.starting_vertex]
     visit_set = set(visits)
@@ -103,7 +106,9 @@ class solvestuff(object):
       if visits[-1] == self.goal_vertex:
         if self.check_neighbours(neighbour_listing, accept_goalmix=False):
           print("woop")
-          break
+          solutions.append(visits.copy())
+          derpstory.append("solution")
+          backtrack = True
         else:
           backtrack = True
       elif len(stack) == 0:
@@ -113,12 +118,12 @@ class solvestuff(object):
       # backtrack
       if backtrack or len(stack[-1]) == 0:
         backtrack = False
-        derpstory.append(None) #deltoken
+        derpstory.append("undo")
         delnode = visits.pop()
         visit_set.remove(delnode)
         stack.pop()
         if delnode == self.starting_vertex:
-          raise Exception("Popped starting vertex")
+          break
         nownode = visits[-1]
         cells = self.fromto(delnode, nownode)
         if cells:
@@ -128,8 +133,6 @@ class solvestuff(object):
         continue
 
       node = stack[-1].pop()
-      #if node != self.goal_vertex and node in visit_set:
-      #  continue
 
       derpstory.append(node)
       visits.append(node)
@@ -146,8 +149,7 @@ class solvestuff(object):
       # edgecheck
       edgecheck = lambda i,j: i == 0 or j == 0 or i == self.vh-1 or j == self.vw-1
       if node != self.starting_vertex and node != self.goal_vertex:
-        #if edgecheck(*node) and not edgecheck(*prevnode):
-        if edgecheck(*node) or edgecheck(*prevnode):
+        if edgecheck(*node) and not edgecheck(*prevnode):
           if cells:
             if not self.check_neighbours(neighbour_listing, accept_goalmix=True, seeds=cells):
               backtrack = True
@@ -155,8 +157,9 @@ class solvestuff(object):
     print("\n\n")
     print(derpstory)
     print("\n")
-    print(visits)
+    for solution in solutions:
+      print(solution)
 
 if __name__ == '__main__':
-  solver = solvestuff()
+  solver = solvestuff(get_demo_screenshot())
   solver.solve()

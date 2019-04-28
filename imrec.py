@@ -1,12 +1,15 @@
 import itertools
 import cv2
 import numpy as np
+import pyscreenshot
 
 # needed imports
 from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.cluster.hierarchy import fcluster
 
+screenres = (1920, 1200)
+gameres = (1440,900)
 
 
 def write_img(path, img, conversion=cv2.COLOR_RGB2BGR):
@@ -19,14 +22,11 @@ def write_img(path, img, conversion=cv2.COLOR_RGB2BGR):
     cv2.imwrite(path, img*255)
 
 def get_screenshot(demo_img=None):
-  screenres = (1920, 1200)
-  gameres = (1440,900)
   startx,starty = (screenres[0] - gameres[0], 0)
   endx,endy = (startx+gameres[0], starty+gameres[1])
 
   if demo_img is None:
-    #take a screenshot
-    pass #img = get_demo_screenshot()
+    img = np.array(pyscreenshot.grab())
   else:
     img = demo_img
 
@@ -81,6 +81,12 @@ class puzzlegen(object):
     self.horstripes, self.verstripes = self.get_stripes()
     self.mids = self.get_cells()
     self.get_shapes()
+
+    self.puzzlebox = [539,268,898,628]
+    x0,y0,xn,yn = self.puzzlebox
+    xo,yo = self.
+    self.puzzimg = self.classimg[y0:yn,x0:xn,:].copy()
+    write_img("./out/test_puzzimg.png", self.puzzimg)
 
   def cyanize(self, img):
     diff = np.sum(np.sqrt( (img - self.ideal_bg)**2), axis=2)
@@ -165,6 +171,7 @@ class puzzlegen(object):
       img4 = cv2.circle(img4, (x,y), 5, col, 2)
 
     write_img("./out/test_classes.png", img4)
+    self.classimg = img4
 
     A = np.zeros(shape=self.cellcounts, dtype=np.uint8)
     mx = np.max(Q)
