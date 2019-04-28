@@ -3,14 +3,13 @@ import cv2
 import numpy as np
 import pyscreenshot
 
-# needed imports
 from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.cluster.hierarchy import fcluster
 
 screenres = (1920, 1200)
 gameres = (1440,900)
-
+puzzlebox = [539,268,898,628]
 
 def write_img(path, img, conversion=cv2.COLOR_RGB2BGR):
   if len(img.shape) > 2 and img.shape[2] > 1:
@@ -30,8 +29,8 @@ def get_screenshot(demo_img=None):
   else:
     img = demo_img
 
-  crop = img[starty:endy, startx:endx, :]
-  write_img("./out/test_crop.png", crop)
+  crop = img[starty:endy, startx:endx, :].copy()
+  #write_img("./out/test_crop.png", crop)
   return crop
 
 def imread(path):
@@ -52,8 +51,6 @@ def template_matching(img, template, offset_xy=None, fn=None):
   res = cv2.matchTemplate(img,template,method)
   min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
 
-  #top_left = max_loc
-  #bottom_right = (top_left[0] + w, top_left[1] + h)
   if offset_xy is None:
     h,w = np.shape(template)[:-1]
     pos = (max_loc[0] + w//2,  max_loc[1] + h//2)
@@ -63,7 +60,7 @@ def template_matching(img, template, offset_xy=None, fn=None):
   img4 = cv2.circle(img, pos, 5, (125,0,125), 2)
   if fn is None:
     fn = "./out/test_template.png"
-  write_img(fn, img4)
+  #write_img(fn, img4)
   return (pos[1], pos[0])
 
 class puzzlegen(object):
@@ -82,9 +79,7 @@ class puzzlegen(object):
     self.mids = self.get_cells()
     self.get_shapes()
 
-    self.puzzlebox = [539,268,898,628]
-    x0,y0,xn,yn = self.puzzlebox
-    xo,yo = self.
+    x0,y0,xn,yn = puzzlebox
     self.puzzimg = self.classimg[y0:yn,x0:xn,:].copy()
     write_img("./out/test_puzzimg.png", self.puzzimg)
 
@@ -94,8 +89,20 @@ class puzzlegen(object):
 
     mono = np.where(diff < self.thresh, 1, 0)
     print(mono.shape)
-    write_img("./out/test_cyanize.png", mono)
+    #write_img("./out/test_cyanize.png", mono)
     return mono
+
+  def stripes_to_puzzle(self, src_vtx, dst_vtx):
+    print(src_vtx, dst_vtx)
+    verstripe1 = self.verstripes[src_vtx[1]]
+    verstripe2 = self.verstripes[dst_vtx[1]]
+    horstripe1 = self.horstripes[src_vtx[0]]
+    horstripe2 = self.horstripes[dst_vtx[0]]
+
+    x0,xn = verstripe1[1],verstripe2[1]
+    y0,yn = horstripe1[0],horstripe2[0]
+    xo,yo,_,_ = puzzlebox
+    return (y0-yo,x0-xo),(yn-yo,xn-xo)
 
   def get_stripes(self):
     #x,y=572,597
@@ -105,12 +112,14 @@ class puzzlegen(object):
 
     xlen = hix - lox
     xstep = xlen/self.cellcounts[1]
+    self.xstep = xstep
     xposes = [int(np.round(lox + xstep*i)) for i in range(1,self.cellcounts[1])]
     xposes = [lox] + xposes + [hix]
     verstripes = [((loy, hiy), xpos) for xpos in xposes]
 
     ylen = hiy - loy
     ystep = ylen/self.cellcounts[0]
+    self.ystep=ystep
     yposes = [int(np.round(loy + ystep*i)) for i in range(1,self.cellcounts[0])]
     yposes = [loy] + yposes + [hiy]
     horstripes =  [(ypos, (lox,hix)) for ypos in yposes]
@@ -120,7 +129,7 @@ class puzzlegen(object):
       self.img2[ypos,  x0:xn] = (255, 0, 50*(i+1))
     for i,((y0,yn),xpos) in enumerate(verstripes):
       self.img2[y0:yn,xpos] = (50*(i+1),255,0)
-    write_img("./out/test_stripe.png", self.img2)
+    #write_img("./out/test_stripe.png", self.img2)
 
     return horstripes,verstripes
 
@@ -135,7 +144,7 @@ class puzzlegen(object):
     img3 = self.img2.copy()
     for (i,y),(j,x) in mids:
       img3 = cv2.circle(img3, (x,y), 5, (0,0,255), 2)
-    write_img("./out/test_cells.png", img3)
+    #write_img("./out/test_cells.png", img3)
     return mids
 
   def get_shapes(self):

@@ -95,8 +95,11 @@ class solvestuff(object):
     neighbour_listing = {(i,j):self.neighbours((i,j),(self.ch, self.cw)) for j in range(self.cw) for i in range(self.ch)}
 
     solutions = []
+    self.solutions = solutions
 
     derpstory = [self.starting_vertex]
+    self.derpstory = derpstory
+
     visits = [self.starting_vertex]
     visit_set = set(visits)
     stack = [ self.neighbours(vtx=self.starting_vertex, HW=(self.vh,self.vw)) ]
