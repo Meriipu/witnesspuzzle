@@ -68,7 +68,7 @@ class solvestuff(object):
       all_visits.update(visited)
     return True
 
-  def fromto(self,old,new):  #,new,h=5,w=5):
+  def fromto(self,old,new):
     """given two vertices, get the nodes that the line between them separates"""
     h,w = self.vsize
     y0,x0 = old
@@ -105,7 +105,6 @@ class solvestuff(object):
     stack = [ self.neighbours(vtx=self.starting_vertex, HW=(self.vh,self.vw)) ]
     backtrack = False
     while stack:
-      #visits = [(4,0), (4,1), (4,2), (4,3), (4,4), (3,4), (3,3), (3,2), (2,2), (2,3), (2,4), (1,4), (1,3), (1,2), (1,1), (0,1), (0,2), (0,3), (0,4)]
       if visits[-1] == self.goal_vertex:
         if self.check_neighbours(neighbour_listing, accept_goalmix=False):
           print("woop")
